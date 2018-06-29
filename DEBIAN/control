@@ -1,0 +1,9 @@
+Package: website-kiosk
+Priority: optional
+Section: otherosfs
+Maintainer: Russell Currie <rcurr@users.noreply.github.com>
+Architecture: all
+Version: 1.0.0
+Depends: python3-pyqt5.qtwebkit, python3-yaml, nodm, xinit, python3-requests, patch, matchbox-window-manager,x11-xserver-utils, adduser
+Pre-Depends: debconf
+Description: Website kiosk to display a series of URLs fullscreen on a raspberry pi.

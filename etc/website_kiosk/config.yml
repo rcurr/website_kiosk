@@ -1,0 +1,11 @@
+---
+kiosk:
+    pagedisplaytime: 20000 # The time in ms to display each page
+    textsizemultiplier: 1.1 # Scale text size on page by this
+    autoscroll: True # whether or not to scroll through the pages
+    loop: 20 # number of times to loop through the list before exiting
+    scrollpx: 10 # number of pixels to scroll at a time with autoscroll
+    shuffle: True # shuffle the urls into a random order
+
+debug: False # enable the developer console
+

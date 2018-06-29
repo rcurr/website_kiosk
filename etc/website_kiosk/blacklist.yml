@@ -1,0 +1,4 @@
+---
+blacklist:
+    - http://blacklist.com/foo.html
+    - http://www.ch.cam.ac.uk/person/drs36

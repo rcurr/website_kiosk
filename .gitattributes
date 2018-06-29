@@ -1,0 +1,8 @@
+*.py ident export-subst
+*website_kiosk ident export-subst
+.gitattributes export-ignore  
+.gitignore export-ignore
+TODO export-ignore
+README.md export-ignore
+.kateproject export-ignore
+COPYING export-ignore

@@ -1,0 +1,175 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2018  Russell Currie
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+import sys
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtWebKit import QWebSettings
+from PyQt5.QtWebKitWidgets import QWebView
+import random
+import yaml
+import json
+import requests
+
+
+__version__ = "$Format:%h$"
+
+autoscroll = '''
+    function pageScroll(pagedisplaytime) {{
+        // calculate how long we have to scroll through the page
+        var scrolltime = pagedisplaytime / (document.body.scrollHeight / {scrollpx});
+        pageDoScroll(scrolltime);
+    }};
+    function pageDoScroll(scrolltime) {{
+        window.scrollBy(0,{scrollpx});
+        // scroll till we reach the end
+        if (window.scrollY < document.body.scrollHeight) {{
+            setTimeout(pageDoScroll,scrolltime,scrolltime);
+        }}
+    }};
+    pageScroll({pagedisplaytime});
+    '''
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        self.view = QWebView(self)
+        self.view.__init__()
+        self.setCentralWidget(self.view)
+
+        self.urls = []
+        self.current_urlindex = 0
+        self.loop = 0 # our current loop
+
+        self.config = getconfig("config.yml")
+
+        self.setDebug()
+
+        # disable the scrollbar
+        self.view.page().mainFrame().setScrollBarPolicy(QtCore.Qt.Vertical,
+                                                        QtCore.Qt.ScrollBarAlwaysOff)
+
+        # Set textsizemultiplier
+        self.view.setZoomFactor(self.config['kiosk']['textsizemultiplier'])
+        self.view.settings().setAttribute(QWebSettings.ZoomTextOnly, True)
+        # maximum number of pages to hold in the memory page cache
+        self.view.settings().setMaximumPagesInCache(1)
+
+        self.blacklist = getconfig('blacklist.yml')
+        self.get_Urls()
+        self.displayUrl(0)
+
+        # Go through the list, changing url every 20s
+        self.ctimer = QtCore.QTimer(self)
+        self.ctimer.timeout.connect(self.displayUrls)
+        self.ctimer.start(self.config['kiosk']['pagedisplaytime'])
+
+        # when mainFrame is loaded, run any extra js
+        self.view.page().mainFrame().loadFinished.connect(self.runUrlJS)
+        # when mainFrame is loaded, scroll
+        self.view.page().mainFrame().loadFinished.connect(self.scrollPage)
+
+    def setDebug(self):
+        if 'debug' in self.config and self.config['debug']:
+            # enable DeveloperExtras
+            self.view.settings().setAttribute(
+                self.view.settings().DeveloperExtrasEnabled,
+                True
+                )
+
+    def remove_blacklisted(self):
+        blacklist = getconfig("blacklist.yml")['blacklist']
+        self.urls = [url for url in self.urls if url['url'] not in blacklist]
+
+    def get_Urls(self):
+        self.get_yaml_urls()
+        self.get_url_json()
+        self.remove_blacklisted()
+        if 'shuffle' in self.config['kiosk'] and self.config['kiosk']['shuffle']:
+            random.shuffle(self.urls)
+
+    def displayUrl(self, urlindex):
+        if len(self.urls) > urlindex:
+            self.view.load(QtCore.QUrl(self.urls[urlindex]['url']))
+            self.current_urlindex = urlindex
+        elif 'loop' in self.config['kiosk'] and self.loop <= self.config['kiosk']['loop']:
+            self.loop += 1
+            self.displayUrl(0)
+        else:
+            # Gone to the end of the list then quit
+            self.close()
+
+    def scrollPage(self, value):
+        # if autoscroll is defined evaluate the autoscroll js
+        if 'autoscroll' in self.config['kiosk'] and self.config['kiosk']['autoscroll']:
+            js = autoscroll.format(
+                pagedisplaytime = self.ctimer.remainingTime(),
+                scrollpx = self.config['kiosk']['scrollpx']
+                )
+            self.runJS(js)
+
+    def runJS(self, js):
+        self.view.page().mainFrame().evaluateJavaScript(js)
+
+    def runUrlJS(self):
+        current_url = self.urls[self.current_urlindex]
+        if 'script' in current_url:
+            self.runJS(current_url['script'])
+
+    def displayUrls(self):
+        self.displayUrl((self.current_urlindex + 1))
+
+    def get_yaml_urls(self):
+        sources = getconfig('sources.yml')
+        if sources['urls'] is not None:
+            self.urls += [{'url': url} for url in sources['urls']]
+        if 'js_urls' in sources:
+            self.urls += sources['js_urls']
+
+    def get_url_json(self):
+        """This gets a list of urls from a json"""
+        urllist = getconfig('sources.yml')['json']
+        if urllist is not None:
+            urls = []
+            for url in urllist:
+                r = requests.get(url)
+                j = json.loads(r.text)
+                for url in [i['node']['Path'] for i in j['nodes']]:
+                    if url != '':
+                        # Some have commas
+                        urls += url.split(',')
+            self.urls += [{'url': url} for url in urls]
+
+
+def getconfig(conffilename):
+    with open(os.path.abspath(os.path.join(os.sep, "etc", appname, conffilename)), 'r') as conffile:
+        config = yaml.load(conffile)
+    return config
+
+
+def main():
+    app = QApplication(sys.argv)
+    widget = MainWindow()
+    widget.showFullScreen()
+    sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    appname = (os.path.basename(__file__)).rstrip('.py')
+    main()

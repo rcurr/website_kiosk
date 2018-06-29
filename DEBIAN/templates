@@ -1,0 +1,5 @@
+Template: website-kiosk/configure_nodm
+Type: boolean
+Default: true
+Description: Configure nodm defaults?
+ This will configure nodm to autostart website-kiosk.

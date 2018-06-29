@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+configure|reconfigure)
+    . /usr/share/debconf/confmodule
+    id website_kiosk || adduser --system --no-create-home --disabled-login --disabled-password --home /var/lib/website_kiosk website_kiosk
+    db_get website-kiosk/configure_nodm
+    if [ "$RET" = "true" ]; then
+        cp /usr/local/share/website-kiosk/nodm-config /etc/default/nodm
+    fi
+    if [ -f /var/lib/website_kiosk/.xinitrc ]; then
+        chown website_kiosk /var/lib/website_kiosk/
+        chown website_kiosk /var/lib/website_kiosk/.xinitrc
+        chmod 0755 /var/lib/website_kiosk/.xinitrc
+    fi
+    ;;
+esac
+exit 0

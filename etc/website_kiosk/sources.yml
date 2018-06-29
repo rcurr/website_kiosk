@@ -1,0 +1,10 @@
+---
+json:
+#  - http://localhost
+urls:
+  - http://bbc.co.uk/news
+  - http://google.co.uk
+
+js_urls:
+  - url: http://bbc.co.uk/news
+    script: 'console.log("loading script");'

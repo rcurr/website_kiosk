@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+remove)
+    id website_kiosk && userdel website_kiosk
+    ;;
+purge)
+    . /usr/share/debconf/confmodule
+    db_purge
+    ;;
+esac
+exit 0
